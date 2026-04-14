@@ -1,7 +1,8 @@
 export default function Home() {
   return (
     <main>
-      <h1>🔥 REDIMACOL 🔥</h1>
-      <p>Mi primera web funcionando 😈</p>
+      <h1>Redimacol - Sistema de Préstamos</h1>
+      <p>Bienvenido al sistema</p>
     </main>
   );
+}
