@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase'
 import { NextResponse } from 'next/server'
 
 export async function GET(request: Request) {
@@ -7,7 +7,7 @@ export async function GET(request: Request) {
   const type = searchParams.get('type')
 
   if (token_hash && type) {
-    const supabase = createClient()
+    
     const { error } = await supabase.auth.verifyOtp({
       type: type as any,
       token_hash,
