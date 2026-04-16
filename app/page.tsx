@@ -1,36 +1,48 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { Users, DollarSign, AlertTriangle, Phone } from 'lucide-react'
 
-export default function DashboardAdmin() {
-  const [metrics, setMetrics] = useState({
-    totalClientes: 0,
-    totalCreditosActivos: 0,
-    clientesAtraso: 0,
-    capitalPrestado: 0,
-  })
-  const [clientesAtraso, setClientesAtraso] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+export default function Login() {
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
   const router = useRouter()
 
-  useEffect(() => {
-    fetchDashboardData()
-  }, [])
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) {
+      alert('Error: ' + error.message)
+    } else {
+      router.push('/dashboard')
+    }
+    setLoading(false)
+  }
 
-  const fetchDashboardData = async () => {
-    try {
-      const { data: resumen } = await supabase
-        .from('resumen_ejecutivo_admin')
-        .select('*')
-        .single()
-
-      const { data: atraso } = await supabase
-        .from('vista_clientes_atraso')
-        .select('*')
-        .limit(10)
-
-      setMetrics({
-        totalClientes: resumen?.total_clientes || 0,
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gray-100">
+      <div className="bg-white p-8 rounded-lg shadow-md w-96">
+        <h1 className="text-2xl font-bold mb-6 text-center text-blue-600">REDIMACOL</h1>
+        <form onSubmit={handleLogin}>
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-2">Email</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+              className="w-full p-2 border rounded" required />
+          </div>
+          <div className="mb-6">
+            <label className="block text-sm font-medium mb-2">Contraseña</label>
+            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)}
+              className="w-full p-2 border rounded" required />
+          </div>
+          <button type="submit" disabled={loading}
+            className="w-full bg-blue-600 text-white p-2 rounded hover:bg-blue-700">
+            {loading ? 'Cargando...' : 'Ingresar'}
+          </button>
+        </form>
+      </div>
+    </div>
+  )
+}
