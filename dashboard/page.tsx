@@ -1,73 +1,146 @@
 'use client'
+
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import { Users, DollarSign, AlertTriangle, Phone } from 'lucide-react'
 
-export default function Dashboard() {
-  const router = useRouter()
-  const [user, setUser] = useState<any>(null)
-  const [clientes, setClientes] = useState<any[]>([])
+export default function DashboardAdmin() {
+  const [metrics, setMetrics] = useState({
+    totalClientes: 0,
+    totalCreditosActivos: 0,
+    clientesAtraso: 0,
+    capitalPrestado: 0,
+  })
+  const [clientesAtraso, setClientesAtraso] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const router = useRouter()
+
   useEffect(() => {
-    checkUser()
-    cargarClientes()
+    fetchDashboardData()
   }, [])
-  const checkUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) router.push('/')
-    else setUser(user)
+
+  const fetchDashboardData = async () => {
+    try {
+      const { data: resumen } = await supabase
+        .from('resumen_ejecutivo_admin')
+        .select('*')
+        .single()
+      const { data: atraso } = await supabase
+        .from('vista_clientes_atraso')
+        .select('*')
+        .limit(10)
+      setMetrics({
+        totalClientes: resumen?.total_clientes || 0,
+        totalCreditosActivos: resumen?.creditos_activos || 0,
+        clientesAtraso: resumen?.clientes_atraso || 0,
+        capitalPrestado: resumen?.capital_prestado || 0,
+      })
+      setClientesAtraso(atraso || [])
+    } catch (error) {
+      console.error('Error:', error)
+    } finally {
+      setLoading(false)
+    }
   }
-  const cargarClientes = async () => {
-    const { data } = await supabase.from('clientes').select('*')
-    setClientes(data || [])
-    setLoading(false)
+
+  const generarWhatsAppLink = (telefono: string, mensaje: string) => {
+    const numero = telefono.replace(/\D/g, '')
+    return `https://wa.me/51${numero}?text=${encodeURIComponent(mensaje)}`
   }
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
-    router.push('/')
-  }
+
   if (loading) return <div className="p-8">Cargando...</div>
+
   return (
     <div className="min-h-screen bg-gray-100">
-      <header className="bg-blue-600 text-white p-4">
-        <div className="container mx-auto flex justify-between">
-          <h1 className="text-2xl font-bold">REDIMACOL</h1>
-          <button onClick={handleLogout} className="bg-red-500 px-4 py-2 rounded">
-            Salir
+      <header className="bg-red-600 text-white shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+          <h1 className="text-2xl font-bold">RED IMACOL - Admin</h1>
+          <button
+            onClick={() => router.push('/creditos/nuevo')}
+            className="bg-red-700 px-4 py-2 rounded-lg hover:bg-red-800"
+          >
+            + Nuevo Crédito
           </button>
         </div>
       </header>
-      <div className="container mx-auto p-6">
-        <div className="grid grid-cols-4 gap-4 mb-8">
-          <div className="bg-white p-6 rounded shadow">
-            <h3 className="text-gray-500">Clientes</h3>
-            <p className="text-3xl font-bold text-blue-600">{clientes.length}</p>
+      <main className="max-w-7xl mx-auto px-4 py-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <div className="bg-blue-50 rounded-lg p-6 shadow-sm border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Clientes</p>
+                <p className="text-2xl font-bold text-gray-900">{metrics.totalClientes}</p>
+              </div>
+              <Users className="text-blue-500" size={32} />
+            </div>
+          </div>
+          <div className="bg-green-50 rounded-lg p-6 shadow-sm border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Créditos Activos</p>
+                <p className="text-2xl font-bold text-gray-900">{metrics.totalCreditosActivos}</p>
+              </div>
+              <DollarSign className="text-green-500" size={32} />
+            </div>
+          </div>
+          <div className="bg-yellow-50 rounded-lg p-6 shadow-sm border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Clientes en Atraso</p>
+                <p className="text-2xl font-bold text-gray-900">{metrics.clientesAtraso}</p>
+              </div>
+              <AlertTriangle className="text-yellow-500" size={32} />
+            </div>
+          </div>
+          <div className="bg-purple-50 rounded-lg p-6 shadow-sm border border-gray-200">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Capital Prestado</p>
+                <p className="text-2xl font-bold text-gray-900">S/ {metrics.capitalPrestado}</p>
+              </div>
+              <DollarSign className="text-purple-500" size={32} />
+            </div>
           </div>
         </div>
-        <div className="bg-white rounded shadow">
-          <div className="p-4 border-b">
-            <h2 className="text-xl font-bold">Clientes</h2>
+        <div className="bg-white rounded-lg shadow">
+          <div className="p-4 border-b border-gray-200">
+            <h2 className="text-lg font-semibold text-red-600 flex items-center gap-2">
+              <AlertTriangle size={20} />
+              Clientes en Atraso
+            </h2>
           </div>
-          <table className="w-full">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="p-3 text-left">Nombre</th>
-                <th className="p-3 text-left">DNI</th>
-                <th className="p-3 text-left">Teléfono</th>
-              </tr>
-            </thead>
-            <tbody>
-              {clientes.map((c) => (
-                <tr key={c.id} className="border-b">
-                  <td className="p-3">{c.nombre}</td>
-                  <td className="p-3">{c.dni}</td>
-                  <td className="p-3">{c.telefono}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="p-4">
+            {clientesAtraso.length === 0 ? (
+              <p className="text-gray-500">No hay clientes en atraso 🎉</p>
+            ) : (
+              <div className="space-y-3">
+                {clientesAtraso.map((cliente: any) => (
+                  <div key={cliente.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                    <div>
+                      <p className="font-medium">{cliente.nombre}</p>
+                      <p className="text-sm text-gray-500">
+                        {cliente.dias_atraso} días de atraso - Cuota: S/ {cliente.monto_cuota}
+                      </p>
+                    </div>
+                    
+                      href={generarWhatsAppLink(cliente.telefono,
+                        `Hola ${cliente.nombre}, te escribe REDIMACOL. Tu cuota vence hoy. ¿Deseas pagar?`
+                      )}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 bg-green-500 text-white px-3 py-2 rounded-lg hover:bg-green-600"
+                    >
+                      <Phone size={16} />
+                      WhatsApp
+                    </a>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      </main>
     </div>
   )
 }
