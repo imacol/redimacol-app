@@ -1,44 +1,32 @@
 'use client'
-
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@supabase/supabase-js'
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+import { supabase } from '@/lib/supabase'
 
 export default function Dashboard() {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [clientes, setClientes] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
-
   useEffect(() => {
     checkUser()
     cargarClientes()
   }, [])
-
   const checkUser = async () => {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) router.push('/')
     else setUser(user)
   }
-
   const cargarClientes = async () => {
     const { data } = await supabase.from('clientes').select('*')
     setClientes(data || [])
     setLoading(false)
   }
-
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push('/')
   }
-
   if (loading) return <div className="p-8">Cargando...</div>
-
   return (
     <div className="min-h-screen bg-gray-100">
       <header className="bg-blue-600 text-white p-4">
@@ -49,7 +37,6 @@ export default function Dashboard() {
           </button>
         </div>
       </header>
-
       <div className="container mx-auto p-6">
         <div className="grid grid-cols-4 gap-4 mb-8">
           <div className="bg-white p-6 rounded shadow">
@@ -57,7 +44,6 @@ export default function Dashboard() {
             <p className="text-3xl font-bold text-blue-600">{clientes.length}</p>
           </div>
         </div>
-
         <div className="bg-white rounded shadow">
           <div className="p-4 border-b">
             <h2 className="text-xl font-bold">Clientes</h2>
