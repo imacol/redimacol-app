@@ -1,0 +1,197 @@
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { supabase } from '@/lib/supabase'
+import { ArrowLeft, Calculator } from 'lucide-react'
+
+export default function NuevoCredito() {
+  const router = useRouter()
+  const [step, setStep] = useState(1)
+  const [loading, setLoading] = useState(false)
+  
+  const [cliente, setCliente] = useState({
+    nombre: '', dni: '', telefono: '', direccion: '', sector: '',
+  })
+
+  const [credito, setCredito] = useState({
+    monto: '', tasa: '10', cuotas: '30',
+  })
+
+  const [preview, setPreview] = useState({
+    montoCuota: 0, totalPagar: 0, interesTotal: 0
+  })
+
+  const calcularCredito = () => {
+    const monto = parseFloat(credito.monto) || 0
+    const tasa = parseFloat(credito.tasa) || 0
+    const cuotas = parseInt(credito.cuotas) || 1
+    const interesTotal = monto * (tasa / 100)
+    const totalPagar = monto + interesTotal
+    const montoCuota = totalPagar / cuotas
+    setPreview({
+      montoCuota: Math.round(montoCuota * 100) / 100,
+      totalPagar: Math.round(totalPagar * 100) / 100,
+      interesTotal: Math.round(interesTotal * 100) / 100
+    })
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setLoading(true)
+    try {
+      const { data: clienteExistente } = await supabase
+        .from('clientes').select('id').eq('dni', cliente.dni).single()
+      let clienteId = clienteExistente?.id
+      if (!clienteId) {
+        const { data: nuevoCliente, error: errorCliente } = await supabase
+          .from('clientes')
+          .insert({ ...cliente, estado: 'activo' })
+          .select().single()
+        if (errorCliente) throw errorCliente
+        clienteId = nuevoCliente.id
+      }
+      const { error: errorCredito } = await supabase
+        .rpc('nuevo_credito_redimacol', {
+          p_cliente_id: clienteId,
+          p_monto: parseFloat(credito.monto),
+          p_tasa_interes: parseFloat(credito.tasa),
+          p_numero_cuotas: parseInt(credito.cuotas),
+        })
+      if (errorCredito) throw errorCredito
+      alert('¡Crédito creado exitosamente!')
+      router.push('/dashboard')
+    } catch (error: any) {
+      alert('Error: ' + error.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-100">
+      <header className="bg-red-600 text-white shadow-lg">
+        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center gap-4">
+          <button onClick={() => router.back()} className="p-2 hover:bg-red-700 rounded">
+            <ArrowLeft size={24} />
+          </button>
+          <h1 className="text-xl font-bold">Nuevo Crédito</h1>
+        </div>
+      </header>
+      <main className="max-w-4xl mx-auto px-4 py-8">
+        <div className="flex mb-8">
+          <div className={`flex-1 text-center pb-2 border-b-2 ${step === 1 ? 'border-red-600 text-red-600' : 'border-gray-300'}`}>
+            1. Datos del Cliente
+          </div>
+          <div className={`flex-1 text-center pb-2 border-b-2 ${step === 2 ? 'border-red-600 text-red-600' : 'border-gray-300'}`}>
+            2. Datos del Crédito
+          </div>
+        </div>
+        <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow p-6">
+          {step === 1 && (
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold mb-4">Información del Cliente</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Nombre completo</label>
+                  <input type="text" required value={cliente.nombre}
+                    onChange={(e) => setCliente({...cliente, nombre: e.target.value})}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Juan Pérez" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">DNI</label>
+                  <input type="text" required maxLength={8} value={cliente.dni}
+                    onChange={(e) => setCliente({...cliente, dni: e.target.value})}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="12345678" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Teléfono</label>
+                  <input type="tel" required value={cliente.telefono}
+                    onChange={(e) => setCliente({...cliente, telefono: e.target.value})}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="987654321" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Sector/Zona</label>
+                  <input type="text" required value={cliente.sector}
+                    onChange={(e) => setCliente({...cliente, sector: e.target.value})}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Sullana Centro" />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Dirección</label>
+                <input type="text" required value={cliente.direccion}
+                  onChange={(e) => setCliente({...cliente, direccion: e.target.value})}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="Av. Principal 123" />
+              </div>
+              <button type="button" onClick={() => setStep(2)}
+                className="w-full mt-6 bg-red-600 text-white py-3 rounded-lg hover:bg-red-700">
+                Continuar →
+              </button>
+            </div>
+          )}
+          {step === 2 && (
+            <div className="space-y-4">
+              <h2 className="text-lg font-semibold mb-4">Información del Crédito</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Monto (S/)</label>
+                  <input type="number" required min="1" value={credito.monto}
+                    onChange={(e) => { setCredito({...credito, monto: e.target.value}); setTimeout(calcularCredito, 100) }}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="1000" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Tasa (%)</label>
+                  <select value={credito.tasa}
+                    onChange={(e) => { setCredito({...credito, tasa: e.target.value}); setTimeout(calcularCredito, 100) }}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md">
+                    <option value="8">8% (Cliente fiel)</option>
+                    <option value="10">10% (Standard)</option>
+                    <option value="12">12% (Nuevo cliente)</option>
+                    <option value="15">15% (Alto riesgo)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Cuotas (días)</label>
+                  <input type="number" required min="1" max="90" value={credito.cuotas}
+                    onChange={(e) => { setCredito({...credito, cuotas: e.target.value}); setTimeout(calcularCredito, 100) }}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md" placeholder="30" />
+                </div>
+              </div>
+              {preview.montoCuota > 0 && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
+                  <h3 className="flex items-center gap-2 font-semibold text-blue-800 mb-2">
+                    <Calculator size={20} /> Resumen del Crédito
+                  </h3>
+                  <div className="grid grid-cols-3 gap-4 text-center">
+                    <div>
+                      <p className="text-sm text-gray-600">Monto cuota</p>
+                      <p className="text-xl font-bold text-blue-600">S/ {preview.montoCuota}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Interés total</p>
+                      <p className="text-xl font-bold text-orange-600">S/ {preview.interesTotal}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-gray-600">Total a pagar</p>
+                      <p className="text-xl font-bold text-green-600">S/ {preview.totalPagar}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              <div className="flex gap-4 mt-6">
+                <button type="button" onClick={() => setStep(1)}
+                  className="flex-1 bg-gray-200 text-gray-700 py-3 rounded-lg hover:bg-gray-300">
+                  ← Atrás
+                </button>
+                <button type="submit" disabled={loading || preview.montoCuota === 0}
+                  className="flex-1 bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 disabled:opacity-50">
+                  {loading ? 'Creando...' : '✓ Crear Crédito'}
+                </button>
+              </div>
+            </div>
+          )}
+        </form>
+      </main>
+    </div>
+  )
+}
